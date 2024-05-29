@@ -73,7 +73,7 @@ resource "aws_route_table_association" "b" {
 }
 
 resource "aws_s3_bucket" "tawaz" {
-  bucket = "tawaz-bucket"
+  bucket = "tawaz-bucket-123456" # Ensure the bucket name is unique globally by adding a unique identifier
 }
 
 resource "aws_iam_role" "tawaz" {
@@ -140,15 +140,15 @@ resource "aws_security_group" "tawaz" {
 }
 
 resource "aws_db_instance" "tawaz" {
-  allocated_storage    = 20
-  engine               = "mysql"
-  engine_version       = "8.0"
-  instance_class       = "db.t2.micro"
-  db_name              = "tawazdb"
-  username             = "admin"
-  password             = "password"
-  parameter_group_name = "default.mysql8.0"
-  skip_final_snapshot  = true
+  allocated_storage = 20
+  engine            = "mysql"
+  engine_version    = "8.0.35"
+  instance_class    = "db.t3.micro"
+  db_name           = "tawazdb"
+  username          = "admin"
+  password          = "password"
+
+
 
   vpc_security_group_ids = [aws_security_group.tawaz.id]
   db_subnet_group_name   = aws_db_subnet_group.tawaz.name
@@ -217,7 +217,7 @@ resource "aws_glue_job" "tawaz" {
   command {
     name            = "glueetl"
     python_version  = "3"
-    script_location = "s3://tawaz-bucket/glue-scripts/tawaz.py"
+    script_location = "s3://tawaz-bucket-123456/glue-scripts/tawaz.py" # Make sure the script exists at this location
   }
 }
 
