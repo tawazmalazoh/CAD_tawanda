@@ -1,0 +1,205 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template to deploy DynamoDB, VPC, Subnets, IGW, Route Tables, NAT Gateway, Security Group, and EC2 instances.
+
+Resources:
+  MetroDDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: metroddb
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.50.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyIGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.50.1.0/24
+      AvailabilityZone: ca-central-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Subnet1
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.50.2.0/24
+      AvailabilityZone: ca-central-1a
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Subnet2
+
+  Subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.50.3.0/24
+      AvailabilityZone: ca-central-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Subnet3
+
+  Subnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.50.4.0/24
+      AvailabilityZone: ca-central-1b
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Subnet4
+
+  PublicSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet3Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet3
+      RouteTableId: !Ref PublicRouteTable
+
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref Subnet1
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet4Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet4
+      RouteTableId: !Ref PrivateRouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref MyVPC
+      GroupDescription: Allow SSH and HTTP traffic
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: MySecurityGroup
+
+  PublicEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      SubnetId: !Ref Subnet1
+      ImageId: ami-07152885003fe0145
+      Tags:
+        - Key: Name
+          Value: PublicEC2Instance
+
+  PrivateEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      SubnetId: !Ref Subnet2
+      ImageId: ami-07152885003fe0145 
+      Tags:
+        - Key: Name
+          Value: PrivateEC2Instance
+
+Outputs:
+  VPCId:
+    Description: VPC Id
+    Value: !Ref MyVPC
+  DynamoDBTableName:
+    Description: DynamoDB Table Name
+    Value: !Ref MetroDDB
+  PublicEC2InstanceId:
+    Description: Public EC2 Instance Id
+    Value: !Ref PublicEC2Instance
+  PrivateEC2InstanceId:
+    Description: Private EC2 Instance Id
+    Value: !Ref PrivateEC2Instance
